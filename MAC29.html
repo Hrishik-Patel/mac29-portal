@@ -5,13 +5,8 @@
 <title>MC29</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
-    /* Default: hide until login */
     .logged-in-only { display: none !important; }
-    
-    /* Reveal when body has the class */
     body.is-logged-in .logged-in-only { display: inline-block !important; }
-
-    /* Modal and Card styles */
     .modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.7); display:flex; align-items:center; justify-content:center; z-index:100; }
     .hidden { display:none !important; }
     .card { background: rgba(30,41,59,.6); backdrop-filter: blur(12px); border-radius:12px; padding:16px; transition:.25s; min-width:200px; position: relative; }
@@ -22,13 +17,8 @@
     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
     th, td { border: 1px solid rgba(255,255,255,0.1); padding: 12px; text-align:center; }
     th { background: rgba(220, 38, 38, 0.2); }
-    /* 1. Hide the button for everyone initially */
     #addBtn { display: none !important; }
-
-    /* 2. ONLY show it when the body has the 'is-logged-in' class */
     body.is-logged-in #addBtn { display: inline-block !important; }
-
-    /* Modal and Utility classes */
     .hidden { display: none !important; }
 </style>
 </head>
@@ -99,7 +89,6 @@
     <div id="noticeRow" class="row"></div>
 </section>
 
-<!-- Modals -->
 <div id="loginModal" class="modal hidden">
     <div class="bg-gray-900 border border-white/20 p-6 rounded-xl space-y-3 w-80 shadow-2xl relative">
         <span class="close-btn" onclick="closeModals()">✕</span>
@@ -183,14 +172,13 @@
 
 <script>
 const _encoded = "aHR0cHM6Ly9hcGkuc3RlaW5ocS5jb20vdjEvc3RvcmFnZXMvNjliNGZlNjRhZmZiYTQwYTYyNWY1ZjVk";
-const API = atob(_encoded); // Decodes it at runtime
+const API = atob(_encoded);
 const ADMIN_ID = "251090570092";
 
 let db = { timetable: [], assignments: [], resources: [], notice: [], users: [] };
 let currentUser = null;
 let isAdmin = false;
 
-// ====== Load all data from sheets ======
 async function loadData() {
     try {
         const [tt, as, rs, nt, us] = await Promise.all([
@@ -207,7 +195,6 @@ async function loadData() {
     }
 }
 
-// ====== Render functions ======
 function render() {
     renderDashboard();
     renderAssignments();
@@ -238,7 +225,7 @@ function renderAssignments() {
     document.getElementById("deadlineRow").innerHTML = db.assignments.map(d => {
         const timeLeft = new Date(d.date) - new Date();
         const daysLeft = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
-        const colorClass = daysLeft < 2 ? 'bg-red-600' : 'bg-red-900/40'; // Urgent alert
+        const colorClass = daysLeft < 2 ? 'bg-red-600' : 'bg-red-900/40';
 
         return `
         <div class="card ${colorClass} border-l-4 border-red-400">
@@ -345,7 +332,8 @@ async function registerNewUser() {
         alert("Network error.");
     }
 }
-// ====== Add functions ======
+
+
 async function addUser() {
     if (!isAdmin) {
         alert("Access Denied: Admin privileges required.");
@@ -361,7 +349,6 @@ async function addUser() {
         return;
     }
 
-    // Check if user already exists in local db to prevent duplicates
     const exists = db.users.find(u => u.reg === reg);
     if (exists) {
         alert("A user with this Registration Number already exists.");
@@ -381,13 +368,12 @@ async function addUser() {
 
         if (response.ok) {
             alert(`User ${name} created successfully!`);
-            // Clear inputs
             document.getElementById("newUserName").value = "";
             document.getElementById("newUserReg").value = "";
             document.getElementById("newUserPass").value = "";
             
             closeModals();
-            loadData(); // Refresh local db
+            loadData();
         } else {
             alert("Failed to connect to the database.");
         }
@@ -449,7 +435,6 @@ async function addAssignment() {
     });
 
     if (response.ok) {
-        // Centralized Log Call
         await writeLog("Add", "assignments", `Assignment "${title}" due on ${date} added`);
         closeModals();
         loadData();
@@ -471,7 +456,6 @@ async function addResource() {
     });
 
     if (response.ok) {
-        // Centralized Log Call
         await writeLog("Add", "resources", `Resource "${title}" added to folder "${folder}"`);
         closeModals();
         loadData();
@@ -491,7 +475,6 @@ async function addNotice() {
     });
 
     if (res.ok) {
-        // Trigger the log
         await writeLog("Add", "notice", `Notice "${title}" posted`);
         closeModals();
         loadData();
@@ -528,8 +511,8 @@ async function writeLog(action, sheet, details) {
         });
     } catch (e) { console.error("Log failed:", e); }
 }
-// ====== Login ======
-// ====== Updated Login ======
+
+
 function login() {
     const reg = document.getElementById("loginReg").value.trim();
     const pass = document.getElementById("loginPass").value.trim();
@@ -539,7 +522,6 @@ function login() {
         currentUser = user.name;
         isAdmin = (reg === ADMIN_ID);
         
-        // This is the critical line that shows the Add button
         document.body.classList.add("is-logged-in");
         
         if (isAdmin) document.body.classList.add("is-admin");
@@ -555,27 +537,24 @@ function login() {
     }
 }
 
-// Global listener to make "Enter" click the primary button in any active modal
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         const activeModal = Array.from(document.querySelectorAll('.modal')).find(m => !m.classList.contains('hidden'));
         if (activeModal) {
-            const btn = activeModal.querySelector('button:last-of-type'); // Clicks the 'Save' or 'Login' button
+            const btn = activeModal.querySelector('button:last-of-type');
             if (btn) btn.click();
         }
     }
 });
 
-// ====== Utility ======
 function showSection(id){ document.querySelectorAll("section").forEach(s=>s.classList.add("hidden")); document.getElementById(id).classList.remove("hidden"); }
 function goHome(){ showSection("home"); }
 function openModal(id){ document.getElementById(id).classList.remove("hidden"); }
 function closeModals(){ document.querySelectorAll(".modal").forEach(m=>m.classList.add("hidden")); }
 
-// ====== Polling for real-time update ======
 loadData();
-setInterval(loadData, 5000); // every 5s
-setInterval(renderLiveClass, 30000); // update live class every 30s
+setInterval(loadData, 5000);
+setInterval(renderLiveClass, 30000);
 </script>
 </body>
 </html>
