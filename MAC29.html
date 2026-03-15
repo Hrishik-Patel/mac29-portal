@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MC29</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    /* Default: hide until login */
+    .logged-in-only { display: none !important; }
+    
+    /* Reveal when body has the class */
+    body.is-logged-in .logged-in-only { display: inline-block !important; }
+
+    /* Modal and Card styles */
+    .modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.7); display:flex; align-items:center; justify-content:center; z-index:100; }
+    .hidden { display:none !important; }
+    .card { background: rgba(30,41,59,.6); backdrop-filter: blur(12px); border-radius:12px; padding:16px; transition:.25s; min-width:200px; position: relative; }
+    .card:hover { transform: translateY(-6px) scale(1.05); z-index:10; }
+    .row { display:flex; gap:16px; overflow-x:auto; padding:10px 10px 14px 10px; scrollbar-width:none; }
+    .row::-webkit-scrollbar { display:none; }
+    .close-btn { position:absolute; top:10px; right:14px; font-size:20px; cursor:pointer; color:white; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid rgba(255,255,255,0.1); padding: 12px; text-align:center; }
+    th { background: rgba(220, 38, 38, 0.2); }
+    /* 1. Hide the button for everyone initially */
+    #addBtn { display: none !important; }
+
+    /* 2. ONLY show it when the body has the 'is-logged-in' class */
+    body.is-logged-in #addBtn { display: inline-block !important; }
+
+    /* Modal and Utility classes */
+    .hidden { display: none !important; }
+</style>
+</head>
+<body class="text-white bg-gradient-to-br from-black via-gray-900 to-black min-h-screen">
+
+<header class="flex justify-between items-center px-8 py-4 bg-white/5 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50">
+    <h1 class="text-2xl font-bold text-red-600 cursor-pointer" onclick="goHome()">Mathematics and Computing Batch of 2029</h1>
+    <nav class="flex gap-6">
+        <button onclick="showSection('timetable')">📅 Timetable</button>
+        <button onclick="showSection('assignments')">📝 Assignments</button>
+        <button onclick="showSection('resources')">📂 Resources</button>
+        <button onclick="showSection('notice')">📢 Notice Board</button>
+    </nav>
+    <div class="flex gap-3">
+        <button id="addBtn" onclick="openModal('addSelector')" class="admin-only bg-red-600 px-3 py-1 rounded">Add</button>
+        <div id="profileCircle" class="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center cursor-pointer text-lg font-bold" onclick="openModal('loginModal')">?</div>
+    </div>
+</header>
+
+<section id="home" class="px-8 mt-6">
+    <h2 class="text-3xl font-bold mb-6">📊 Dashboard</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div class="card cursor-pointer" onclick="showSection('assignments')">
+            <h3 class="font-bold">📝 Active Assignments</h3>
+            <p id="activeAssignments" class="text-2xl mt-2">0</p>
+        </div>
+        <div class="card cursor-pointer" onclick="showSection('resources')">
+            <h3 class="font-bold">📂 Total Resources</h3>
+            <p id="totalResources" class="text-2xl mt-2">0</p>
+        </div>
+        <div class="card cursor-pointer" onclick="showSection('notice')">
+            <h3 class="font-bold">📢 Recent Notices</h3>
+            <p id="recentNotices" class="text-2xl mt-2">0</p>
+        </div>
+    </div>
+    <div class="grid grid-cols-3 gap-6">
+        <div class="card col-span-2">
+            <div class="flex justify-between">
+                <h3 class="font-bold mb-2">📅 Today's Schedule</h3>
+                <span id="liveClass" class="text-red-500 text-sm animate-pulse font-bold"></span>
+            </div>
+            <div id="todaySchedule" class="space-y-2"></div>
+        </div>
+        <div class="card">
+            <h3 class="font-bold mb-2">📢 Latest Notices</h3>
+            <div id="latestNoticeCards" class="space-y-2"></div>
+        </div>
+    </div>
+</section>
+
+<section id="timetable" class="px-8 mt-6 hidden">
+    <h2 class="text-xl mb-4">Weekly Timetable</h2>
+    <div id="timetableGrid"></div>
+</section>
+
+<section id="assignments" class="px-8 mt-6 hidden">
+    <h2 class="text-xl mb-4">Assignment Dates</h2>
+    <div id="deadlineRow" class="row"></div>
+</section>
+
+<section id="resources" class="px-8 mt-6 hidden">
+    <h2 class="text-xl mb-4">Resources</h2>
+    <div id="linkRow" class="space-y-4"></div>
+</section>
+
+<section id="notice" class="px-8 mt-6 hidden">
+    <h2 class="text-xl mb-4">Notice Board</h2>
+    <div id="noticeRow" class="row"></div>
+</section>
+
+<!-- Modals -->
+<div id="loginModal" class="modal hidden">
+    <div class="bg-gray-900 border border-white/20 p-6 rounded-xl space-y-3 w-80 shadow-2xl relative">
+        <span class="close-btn" onclick="closeModals()">✕</span>
+        
+        <div id="loginFields">
+            <h3 class="text-lg font-bold mb-2">Login</h3>
+            <input id="loginReg" placeholder="Registration Number" class="text-black p-2 w-full rounded mb-2">
+            <input id="loginPass" type="password" placeholder="Password" class="text-black p-2 w-full rounded mb-3">
+            <button onclick="login()" class="bg-red-600 w-full p-2 rounded font-bold mb-4">Login</button>
+            <p class="text-xs text-center text-gray-400">New to the portal? 
+                <span class="text-red-400 cursor-pointer hover:underline" onclick="toggleAuthMode(true)">Create Account</span>
+            </p>
+        </div>
+
+        <div id="registerFields" class="hidden">
+            <h3 class="text-lg font-bold mb-2">Create Account</h3>
+            <input id="regName" placeholder="Full Name" class="text-black p-2 w-full rounded mb-2">
+            <input id="regId" placeholder="Registration Number" class="text-black p-2 w-full rounded mb-2">
+            <input id="regPass" type="password" placeholder="Set Password" class="text-black p-2 w-full rounded mb-3">
+            <button onclick="registerNewUser()" class="bg-blue-600 w-full p-2 rounded font-bold mb-4">Register</button>
+            <p class="text-xs text-center text-gray-400">Already have an account? 
+                <span class="text-blue-400 cursor-pointer hover:underline" onclick="toggleAuthMode(false)">Back to Login</span>
+            </p>
+        </div>
+    </div>
+</div>
+
+<div id="addSelector" class="modal hidden">
+    <div class="bg-gray-900 p-6 rounded-xl space-y-3 relative w-72 border border-white/20">
+        <span class="close-btn" onclick="closeModals()">✕</span>
+        <h3 class="text-center font-bold mb-2">Contribute</h3>
+        <button onclick="openModal('assignmentModal')" class="bg-purple-600 hover:bg-purple-700 px-3 py-2 w-full rounded transition font-bold">📝 Add Assignment</button>
+        <button onclick="openModal('resourceModal')" class="bg-green-600 hover:bg-green-700 px-3 py-2 w-full rounded transition font-bold">📂 Add Resource</button>
+        <button onclick="openModal('noticeModal')" class="bg-yellow-600 hover:bg-yellow-700 px-3 py-2 w-full rounded transition font-bold text-black">📢 Add Notice</button>
+    </div>
+</div>
+<div id="timetableModal" class="modal hidden">
+    <div class="bg-gray-900 p-6 rounded space-y-3 relative w-72">
+        <span class="close-btn" onclick="closeModals()">✕</span>
+        <select id="ttDay" class="text-black p-2 w-full rounded">
+            <option>Monday</option>
+            <option>Tuesday</option>
+            <option>Wednesday</option>
+            <option>Thursday</option>
+            <option>Friday</option>
+            <option>Saturday</option>
+        </select>
+        <input id="ttTime" type="time" class="text-black p-2 w-full rounded">
+        <input id="ttTitle" placeholder="Subject" class="text-black p-2 w-full rounded">
+        <button onclick="addTT()" class="bg-green-500 px-3 py-1 w-full rounded">Save</button>
+    </div>
+</div>
+
+<div id="assignmentModal" class="modal hidden">
+    <div class="bg-gray-900 p-6 rounded space-y-3 relative w-72">
+        <span class="close-btn" onclick="closeModals()">✕</span>
+        <input id="asTitle" placeholder="Assignment Title" class="text-black p-2 w-full rounded">
+        <input id="asDate" type="datetime-local" class="text-black p-2 w-full rounded">
+        <button onclick="addAssignment()" class="bg-green-500 px-3 py-1 w-full rounded">Save</button>
+    </div>
+</div>
+
+<div id="resourceModal" class="modal hidden">
+    <div class="bg-gray-900 p-6 rounded space-y-3 relative w-72">
+        <span class="close-btn" onclick="closeModals()">✕</span>
+        <input id="folderName" placeholder="Folder Name" class="text-black p-2 w-full rounded">
+        <input id="linkTitle" placeholder="File Title" class="text-black p-2 w-full rounded">
+        <input id="linkURL" placeholder="File URL" class="text-black p-2 w-full rounded">
+        <button onclick="addResource()" class="bg-green-500 px-3 py-1 w-full rounded">Save</button>
+    </div>
+</div>
+
+<div id="noticeModal" class="modal hidden">
+    <div class="bg-gray-900 p-6 rounded space-y-3 relative w-72">
+        <span class="close-btn" onclick="closeModals()">✕</span>
+        <input id="noticeTitleInput" placeholder="Notice Title" class="text-black p-2 w-full rounded">
+        <textarea id="noticeMessage" placeholder="Message" class="text-black p-2 w-full rounded"></textarea>
+        <button onclick="addNotice()" class="bg-green-500 px-3 py-1 w-full rounded">Save</button>
+    </div>
+</div>
+
+<script>
+const _encoded = "aHR0cHM6Ly9hcGkuc3RlaW5ocS5jb20vdjEvc3RvcmFnZXMvNjliNGZlNjRhZmZiYTQwYTYyNWY1ZjVk";
+const API = atob(_encoded); // Decodes it at runtime
+const ADMIN_ID = "251090570092";
+
+let db = { timetable: [], assignments: [], resources: [], notice: [], users: [] };
+let currentUser = null;
+let isAdmin = false;
+
+// ====== Load all data from sheets ======
+async function loadData() {
+    try {
+        const [tt, as, rs, nt, us] = await Promise.all([
+            fetch(`${API}/timetable`).then(r => r.json()),
+            fetch(`${API}/assignments`).then(r => r.json()),
+            fetch(`${API}/resources`).then(r => r.json()),
+            fetch(`${API}/notice`).then(r => r.json()),
+            fetch(`${API}/users`).then(r => r.json())
+        ]);
+        db = { timetable: tt, assignments: as, resources: rs, notice: nt, users: us };
+        render();
+    } catch (e) {
+        console.error("Failed to load data:", e);
+    }
+}
+
+// ====== Render functions ======
+function render() {
+    renderDashboard();
+    renderAssignments();
+    renderResources();
+    renderNoticeBoard();
+    renderTimetableGrid();
+    renderLiveClass();
+}
+
+function renderDashboard() {
+    document.getElementById("activeAssignments").innerText = db.assignments.length;
+    document.getElementById("totalResources").innerText = db.resources.length;
+    document.getElementById("recentNotices").innerText = db.notice.length;
+
+    const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+    const todayClasses = db.timetable.filter(t => t.day === today);
+    document.getElementById("todaySchedule").innerHTML = todayClasses.length ?
+        todayClasses.map(t => `<div class="p-2 border-b border-white/10">${t.time} - ${t.title}</div>`).join('') :
+        "No classes today";
+
+    document.getElementById("latestNoticeCards").innerHTML = [...db.notice]
+        .sort((a,b)=> new Date(b.date) - new Date(a.date))
+        .slice(0,5)
+        .map(n => `<div class="border-b border-gray-700 py-1 text-sm truncate cursor-pointer" onclick="showSection('notice')">${n.title}</div>`).join('');
+}
+
+function renderAssignments() {
+    document.getElementById("deadlineRow").innerHTML = db.assignments.map(d => {
+        const timeLeft = new Date(d.date) - new Date();
+        const daysLeft = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+        const colorClass = daysLeft < 2 ? 'bg-red-600' : 'bg-red-900/40'; // Urgent alert
+
+        return `
+        <div class="card ${colorClass} border-l-4 border-red-400">
+            <h3 class="font-bold">${d.title}</h3>
+            <p class="text-xs mt-2">${daysLeft >= 0 ? daysLeft + ' days left' : 'Overdue'}</p>
+        </div>`;
+    }).join('');
+}
+
+function renderResources() {
+    const folders = {};
+    db.resources.forEach(r => {
+        if (!folders[r.folder]) folders[r.folder] = [];
+        folders[r.folder].push(r);
+    });
+
+    let html = '';
+    for (let f in folders) {
+        html += `<div class="card w-full mb-4">
+                    <h3 class="font-bold text-lg mb-2">📁 ${f}</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        ${folders[f].map(link => `<a href="${link.url}" target="_blank" class="text-blue-400 hover:underline">📄 ${link.title}</a>`).join('')}
+                    </div>
+                </div>`;
+    }
+    document.getElementById("linkRow").innerHTML = html || "No resources found";
+}
+
+function renderNoticeBoard() {
+    document.getElementById("noticeRow").innerHTML = db.notice
+        .sort((a,b)=> new Date(b.date) - new Date(a.date))
+        .map(n => `<div class="card min-w-[300px]">
+            <h3 class="font-bold text-red-500">${n.title}</h3>
+            <p class="text-sm mt-2 text-gray-300">${n.message || "No details"}</p>
+        </div>`).join('');
+}
+
+function renderTimetableGrid() {
+    const days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    const times = [...new Set(db.timetable.map(t => t.time))].sort();
+    let html = `<table><tr><th>Time</th>${days.map(d => `<th>${d}</th>`).join("")}</tr>`;
+    times.forEach(time => {
+        html += `<tr><td class="font-bold">${time}</td>`;
+        days.forEach(day => {
+            const entry = db.timetable.find(t => t.day===day && t.time===time);
+            html += `<td>${entry ? entry.title : ""}</td>`;
+        });
+        html += `</tr>`;
+    });
+    html += `</table>`;
+    document.getElementById("timetableGrid").innerHTML = html;
+}
+
+function renderLiveClass() {
+    const now = new Date();
+    const today = now.toLocaleDateString('en-US', { weekday: 'long' });
+    const mins = now.getHours()*60 + now.getMinutes();
+    const current = db.timetable.find(t=>{
+        if(t.day!==today) return false;
+        const [h,m] = t.time.split(':').map(Number);
+        const start = h*60+m;
+        return mins>=start && mins<(start+60);
+    });
+    document.getElementById("liveClass").innerText = current ? `● LIVE: ${current.title}` : "";
+}
+function toggleAuthMode(showRegister) {
+    document.getElementById('loginFields').classList.toggle('hidden', showRegister);
+    document.getElementById('registerFields').classList.toggle('hidden', !showRegister);
+}
+
+async function registerNewUser() {
+    const name = document.getElementById("regName").value.trim();
+    const reg = document.getElementById("regId").value.trim();
+    const password = document.getElementById("regPass").value.trim();
+    if (!name || !reg || !password) {
+        alert("Please fill in all fields.");
+        return;
+    }
+    if (!reg.startsWith("25109057")) {
+        alert("Access Denied: For Mathematics And Computing 2029 Students only.");
+        return;
+    }
+    if (reg.length !== 12) {
+        alert("Invalid Registration Number length.");
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API}/users`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify([{ name, reg, password }])
+        });
+
+        if (response.ok) {
+            alert("Account created successfully!");
+            toggleAuthMode(false); 
+            loadData(); 
+        } else {
+            alert("Registration failed. Please try again.");
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Network error.");
+    }
+}
+// ====== Add functions ======
+async function addUser() {
+    if (!isAdmin) {
+        alert("Access Denied: Admin privileges required.");
+        return;
+    }
+
+    const name = document.getElementById("newUserName").value.trim();
+    const reg = document.getElementById("newUserReg").value.trim();
+    const password = document.getElementById("newUserPass").value.trim();
+
+    if (!name || !reg || !password) {
+        alert("Please fill in all fields.");
+        return;
+    }
+
+    // Check if user already exists in local db to prevent duplicates
+    const exists = db.users.find(u => u.reg === reg);
+    if (exists) {
+        alert("A user with this Registration Number already exists.");
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API}/users`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify([{
+                name: name,
+                reg: reg,
+                password: password
+            }])
+        });
+
+        if (response.ok) {
+            alert(`User ${name} created successfully!`);
+            // Clear inputs
+            document.getElementById("newUserName").value = "";
+            document.getElementById("newUserReg").value = "";
+            document.getElementById("newUserPass").value = "";
+            
+            closeModals();
+            loadData(); // Refresh local db
+        } else {
+            alert("Failed to connect to the database.");
+        }
+    } catch (error) {
+        console.error("Error creating user:", error);
+        alert("Network error. Check console for details.");
+    }
+}
+async function addTT() { 
+    if (!isAdmin) { 
+        alert("Only admin can add to the timetable"); 
+        return; 
+    }
+    
+    const day = document.getElementById("ttDay").value;
+    const time = document.getElementById("ttTime").value;
+    const title = document.getElementById("ttTitle").value;
+
+    if (!day || !time || !title) { 
+        alert("Please enter all fields (Day, Time, and Subject)"); 
+        return; 
+    }
+    try {
+        const response = await fetch(`${API}/timetable`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify([
+                { 
+                    day: day, 
+                    time: time, 
+                    title: title 
+                }
+            ])
+        });
+
+        if (response.ok) {
+            closeModals();
+            loadData();
+        } else {
+            alert("Failed to save to sheet. Check your API permissions.");
+        }
+    } catch (error) {
+        console.error("Error adding timetable entry:", error);
+        alert("Network error. Please try again.");
+    }
+}
+
+async function addAssignment() {
+    if (!currentUser) { alert("Login first"); return; }
+    const title = document.getElementById("asTitle").value;
+    const date = document.getElementById("asDate").value;
+
+    if (!title || !date) { alert("Enter all fields"); return; }
+
+    const response = await fetch(`${API}/assignments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify([{ title, date }])
+    });
+
+    if (response.ok) {
+        // Centralized Log Call
+        await writeLog("Add", "assignments", `Assignment "${title}" due on ${date} added`);
+        closeModals();
+        loadData();
+    }
+}
+
+async function addResource() {
+    if (!currentUser) { alert("Login first"); return; }
+    const folder = document.getElementById("folderName").value;
+    const title = document.getElementById("linkTitle").value;
+    const url = document.getElementById("linkURL").value;
+
+    if (!folder || !title || !url) { alert("Enter all fields"); return; }
+
+    const response = await fetch(`${API}/resources`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify([{ folder, title, url }])
+    });
+
+    if (response.ok) {
+        // Centralized Log Call
+        await writeLog("Add", "resources", `Resource "${title}" added to folder "${folder}"`);
+        closeModals();
+        loadData();
+    }
+}
+async function addNotice() {
+    if (!currentUser) { alert("Login first"); return; }
+    const title = document.getElementById("noticeTitleInput").value;
+    const message = document.getElementById("noticeMessage").value;
+
+    if (!title || !message) return;
+
+    const res = await fetch(`${API}/notice`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify([{ title, message, date: new Date().toISOString() }])
+    });
+
+    if (res.ok) {
+        // Trigger the log
+        await writeLog("Add", "notice", `Notice "${title}" posted`);
+        closeModals();
+        loadData();
+    }
+}
+async function writeLog(action, sheet, details) {
+    if (!currentUser) return;
+
+    const ua = navigator.userAgent;
+    let browser = "Other";
+    if (ua.includes("Firefox")) browser = "Firefox";
+    else if (ua.includes("Chrome")) browser = "Chrome";
+    else if (ua.includes("Safari") && !ua.includes("Chrome")) browser = "Safari";
+    else if (ua.includes("Edg")) browser = "Edge";
+    else if (ua.includes("Brave")) browser = "Brave";
+
+    const device = /Android|iPhone|iPad/i.test(ua) ? "Mobile" : "Desktop";
+
+    const logEntry = {
+        timestamp: new Date().toISOString(),
+        user: currentUser,
+        action: action,
+        sheet: sheet,
+        details: details,
+        browser: browser,
+        device: device
+    };
+
+    try {
+        await fetch(`${API}/log`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify([logEntry])
+        });
+    } catch (e) { console.error("Log failed:", e); }
+}
+// ====== Login ======
+// ====== Updated Login ======
+function login() {
+    const reg = document.getElementById("loginReg").value.trim();
+    const pass = document.getElementById("loginPass").value.trim();
+    const user = db.users.find(u => u.reg === reg && u.password === pass);
+
+    if (user) {
+        currentUser = user.name;
+        isAdmin = (reg === ADMIN_ID);
+        
+        // This is the critical line that shows the Add button
+        document.body.classList.add("is-logged-in");
+        
+        if (isAdmin) document.body.classList.add("is-admin");
+
+        document.getElementById("profileCircle").innerText = currentUser[0].toUpperCase();
+        document.getElementById("profileCircle").classList.add("bg-red-600");
+
+        writeLog("Login", "users", "User session started");
+        alert("Welcome, " + currentUser);
+        closeModals();
+    } else {
+        alert("Invalid credentials. Access restricted to MnC 2029 Students.");
+    }
+}
+
+// Global listener to make "Enter" click the primary button in any active modal
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        const activeModal = Array.from(document.querySelectorAll('.modal')).find(m => !m.classList.contains('hidden'));
+        if (activeModal) {
+            const btn = activeModal.querySelector('button:last-of-type'); // Clicks the 'Save' or 'Login' button
+            if (btn) btn.click();
+        }
+    }
+});
+
+// ====== Utility ======
+function showSection(id){ document.querySelectorAll("section").forEach(s=>s.classList.add("hidden")); document.getElementById(id).classList.remove("hidden"); }
+function goHome(){ showSection("home"); }
+function openModal(id){ document.getElementById(id).classList.remove("hidden"); }
+function closeModals(){ document.querySelectorAll(".modal").forEach(m=>m.classList.add("hidden")); }
+
+// ====== Polling for real-time update ======
+loadData();
+setInterval(loadData, 5000); // every 5s
+setInterval(renderLiveClass, 30000); // update live class every 30s
+</script>
+</body>
+</html>
