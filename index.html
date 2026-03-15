@@ -504,7 +504,7 @@ async function writeLog(action, sheet, details) {
     };
 
     try {
-        await fetch(`${API}/log`, {
+        await fetch(`${API}/logs`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify([logEntry])
